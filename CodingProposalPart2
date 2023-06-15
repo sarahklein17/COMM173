@@ -1,0 +1,58 @@
+from selenium import webdriver
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+import pandas as pd
+import time
+df = pd.read_csv('comm173_youtube2.csv')
+print(df)
+df[~df.link.str.contains("/shorts")]
+df_2 = df[~df.link.str.contains("/shorts")]
+driver = webdriver.Chrome(('/Users/sarahklein/Documents/COMM173/chromedriver'))
+driver = webdriver.Chrome(('/Users/davidjeong/Documents/COMM170/chromedriver'))
+driver.maximize_window()
+driver.implicitly_wait(20)
+comments = []
+comment_likes = []
+def scroll_to_bottom(driver):
+    old_position = 0
+    new_position = None
+    scroll_distance = 500
+    
+    while (new_position != old_position):
+        old_position = driver.execute_script(("return (window.pageYOffset !== undefined) ?"
+                                            " window.pageYOffset : (document.documentElement ||"
+                                            " document.body.parentNode || document.body);"))
+        time.sleep(5)
+        driver.execute_script(("var scrollingElement = (document.scrollingElement ||"
+                              " document.body);scrollingElement.scrollTop = "
+                              " scrollingElement.scrollHeight"))
+        
+        time.sleep(5)
+        new_position = driver.execute_script(("return (window.pageYOffset !== undefined) ?"
+                                             " window.pageYOffset : (document.documentElement ||"
+                                             " document.body.parentNode || documentBody);"))
+for index, row in df_2.iterrows():
+    driver.get(row['link'])
+
+    wait = WebDriverWait(driver, 10)
+    wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '#comments #content-text')))
+    
+    scroll_to_bottom(driver)
+    
+    time.sleep(2)
+
+    comment_elems = driver.find_elements(By.CSS_SELECTOR,'#comments #content-text')
+    comment_like_elems = driver.find_elements(By.CSS_SELECTOR,'#comments #vote-count-middle')
+    comment_text = [elem.text for elem in comment_elems]
+    comment_like_text = [elem.text for elem in comment_like_elems]
+
+    for i in range(len(comment_text)):
+        comments.append([row['link'], row['title'], comment_text[i]])
+        comment_likes.append([row['link'], row['title'], comment_text[i], comment_like_text[i]])
+driver.quit()
+comments_df = pd.DataFrame(comments, columns=['Link', 'Title', 'Comment'])
+comment_likes_df = pd.DataFrame(comment_likes, columns=['Link', 'Title', 'Comment', 'Likes'])
+comments_df.to_csv('video_comments.csv', index=False)
+comment_likes_df.to_csv('video_comment_likes.csv', index=False)
